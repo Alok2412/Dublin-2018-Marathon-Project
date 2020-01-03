@@ -1,0 +1,328 @@
+---
+title: " Dublin Marathon 2018"
+author: "Alok Kumar Singh"
+output: 
+  html_document:
+    code_folding: hide
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction 
+
+The Dublin Marathon data consisted of 22 variables on 16433 observations. I decided to remove the variables YouTube, YourRaceVideo and Share as they contained a lot of Na’s and I decided not to use them in our analysis. In part 1 I looked at the top 100 places amongst the categories of groups running then looked at the Guntime amongst the different groups. I divided up the categories by gender and looked at the proportion of males and females in each category. In part 2 I looked at the average speed for the first half and last half of the marathon amongst the different running groups. Finally, in part 3 I looked at the proportion of each gender in a club or not and then whether the participants were in a club or not by category. I ran a linear model to see whether being in a club and your age affected on your finishing time.
+
+##The Analysis 
+
+PART 1
+
+```{r  }
+
+suppressMessages(library(ggplot2))
+suppressMessages(library(dplyr))
+
+
+suppressMessages(marathon<-read.csv("/rstudio_files/ST661/dublin2018marathon.csv",stringsAsFactors = F))
+suppressMessages(library(alr4))
+
+top100<-marathon[1:100,]
+top_1<-
+  marathon %>% group_by(Category) %>%
+  filter(Category.Position==1)
+
+##Male data as per categories
+marathon_male<-subset(marathon,marathon$Gender=="Male")
+marathon_male_cat<-table(as.factor(as.vector(marathon_male$Category)))
+##Female data as per categories
+marathon_female<-subset(marathon,marathon$Gender=="Female")
+marathon_female_cat<-table(as.factor(as.vector(marathon_female$Category)))
+
+t1<-ggplot(data=top100) +
+geom_bar(mapping = aes(x=top100$Category,fill=top100$Category))+
+coord_flip()
+
+t2<-ggplot(data=top_1) +
+  geom_bar(mapping =aes(x=Category,y=Gun.Time),stat="identity")+
+  theme(axis.text.x = element_text(angle = 90), legend.position="none") +
+  xlab("Category") +
+  coord_flip()
+
+plot1<-ggplot(data=marathon_male) +
+geom_bar(mapping =
+aes(x=marathon_male$Category,fill=marathon_male$Category))+theme(legend.position = "none")+
+coord_flip()
+
+
+plot2<-ggplot(data=marathon_female) +
+geom_bar(mapping =
+aes(x=marathon_female$Category,fill=marathon_female$Category
+))+theme(legend.position = "none")+coord_flip()
+
+
+suppressMessages(require(gridExtra))
+grid.arrange(t1, t2,plot1, plot2,ncol=2,nrow=2)
+
+
+```
+
+
+
+
+
+
+```{r}
+#nrow(filter(top100,top100$Gender=="Male")) ##males in top 100
+
+#nrow(filter(top100,top100$Gender=="Female")) ##females in top 100
+
+#sum(marathon_male_cat) ## males competed
+
+#sum(marathon_female_cat) ## females competed
+marathon_male_cat
+marathon_female_cat
+```
+
+There were 5607 females and 10826 males competing. In the first graph, I saw that the top 100 finishers consisted mostly of category MS(Male Singles). In the second graph, I saw that there was a big difference amongst all categories of runners and their gun time. In the bottom two graphs, I saw that we have a higher proportion of singles and 40's for both genders.
+
+PART2
+
+```{r , messages=FALSE,warning=FALSE}
+library(tidyr)
+dublin2018marathon <-marathon
+
+# Cleaning data set by removing unwanted columns i.e YouTube ,Your.Race.Video , Share by pointing it to NULL
+dublin2018marathon_new <- dublin2018marathon
+dublin2018marathon_new$YouTube <-
+dublin2018marathon_new$Your.Race.Video<-dublin2018marathon_new$Share<- NULL
+
+ ##To create a new data set with times
+dublin2018marathon_time <- select(dublin2018marathon_new,Category =
+Category , Speed1 = X10K, Speed2 = Halfway, Speed3 = X30K, Speed4 =
+Gun.Time)
+
+# To seperate the time fields into hour, minutes and seconds
+dublin2018marathon_time <- dublin2018marathon_time %>% separate(Speed1, into = c("hour1","minutes1","seconds1"),extra =
+"drop",fill = "right") %>% separate(Speed2, into =
+c("hour2","minutes2","seconds2"),extra = "drop",fill = "right") %>%
+separate(Speed3, into = c("hour3","minutes3","seconds3"),extra =
+"drop",fill = "right") %>% separate(Speed4, into =
+c("hour4","minutes4","seconds4"),extra = "drop",fill = "right")
+##dublin2018marathon_time
+# To convert the character field into the numeric
+suppressWarnings({
+dublin2018marathon_time$hour1 <-
+as.numeric(as.character(dublin2018marathon_time$hour1))
+dublin2018marathon_time$minutes1 <-
+as.numeric(as.character(dublin2018marathon_time$minutes1))
+dublin2018marathon_time$seconds1 <-
+as.numeric(as.character(dublin2018marathon_time$seconds1))
+dublin2018marathon_time$hour2 <-
+as.numeric(as.character(dublin2018marathon_time$hour2))
+dublin2018marathon_time$minutes2 <-
+as.numeric(as.character(dublin2018marathon_time$minutes2))
+dublin2018marathon_time$seconds2 <-
+as.numeric(as.character(dublin2018marathon_time$seconds2))
+dublin2018marathon_time$hour3 <-
+as.numeric(as.character(dublin2018marathon_time$hour3))
+dublin2018marathon_time$minutes3 <-
+as.numeric(as.character(dublin2018marathon_time$minutes3))
+dublin2018marathon_time$seconds3 <-
+as.numeric(as.character(dublin2018marathon_time$seconds3))
+dublin2018marathon_time$hour4 <-
+as.numeric(as.character(dublin2018marathon_time$hour4))
+dublin2018marathon_time$minutes4 <-
+as.numeric(as.character(dublin2018marathon_time$minutes4))
+dublin2018marathon_time$seconds4 <-
+as.numeric(as.character(dublin2018marathon_time$seconds4))
+})
+# To convert minutes and seconds into hour
+dublin2018marathon_time$minutes1 <- dublin2018marathon_time$minutes1 /
+60
+dublin2018marathon_time$minutes2 <- dublin2018marathon_time$minutes2 /
+60
+dublin2018marathon_time$minutes3 <- dublin2018marathon_time$minutes3 /
+60
+dublin2018marathon_time$minutes4 <- dublin2018marathon_time$minutes4 /
+60
+dublin2018marathon_time$seconds1 <- dublin2018marathon_time$seconds1 /
+(60 * 60)
+dublin2018marathon_time$seconds2 <- dublin2018marathon_time$seconds2 /
+(60 * 60)
+dublin2018marathon_time$seconds3 <- dublin2018marathon_time$seconds3 /
+(60 * 60)
+dublin2018marathon_time$seconds4 <- dublin2018marathon_time$seconds4 /
+(60 * 60)
+##To calculate total time to cover distance
+dublin2018marathon_time <- mutate(dublin2018marathon_time,count1 =
+0,count2 = 0,count3 = 0,count4 = 0 )
+dublin2018marathon_time$count1 <-
+rowSums(dublin2018marathon_time[,c(2,3,4)])
+dublin2018marathon_time$count2 <-
+rowSums(dublin2018marathon_time[,c(5,6,7)])
+dublin2018marathon_time$count3 <-
+rowSums(dublin2018marathon_time[,c(8,9,10)])
+dublin2018marathon_time$count4 <-
+rowSums(dublin2018marathon_time[,c(11,12,13)])
+# To calculate average speed of people in marathon in km/hr
+dublin2018marathon_time1 <- mutate(dublin2018marathon_time , average1
+= 10/dublin2018marathon_time$count1,average2 =
+20/dublin2018marathon_time$count2 , average3 =
+30/dublin2018marathon_time$count3, average4 =
+40/dublin2018marathon_time$count4)
+
+dublin2018marathon_speed <- dublin2018marathon_time1 %>%
+group_by(Category) %>% summarise(count = n(),speed1=
+mean(na.omit(average1)), speed2 = mean(na.omit(average2)), speed3 =
+mean(na.omit(average3)),speed4 = mean(na.omit(average4)))
+ 
+pl1<-ggplot(dublin2018marathon_speed, aes(x=Category, y=(speed1+speed2)/2))+ geom_bar(col="blue",fill="lightblue",stat = "identity",na.rm=TRUE) + labs(title =
+"Speed for first 20k",x= "Category",y="Speed")+coord_flip()
+
+ pl2<-ggplot(dublin2018marathon_speed, aes(x=Category, y=(speed3+speed4)/2))+
+geom_bar(col="blue",fill="lightblue",stat = "identity",na.rm = TRUE) + labs(title =
+"Speed for last 20k",x= "Category",y="Speed")+ 
+coord_flip()
+
+grid.arrange( pl1,pl2 ,ncol=2)
+
+
+```
+
+In the first graph, we are looking at the average speed of each category to complete the marathon halfway (i.e for first 20 km) and we can see that males single are running with higher speed than the others. In the second graph, we see the same pattern however the male85 category is removed, possibly they did not complete the race.
+
+PART3
+
+```{r , messages=FALSE,warning=FALSE}
+getSeconds <- function(timeE)
+{
+ vHour <- c()
+ for (i in 1:length(timeE)) {
+ hour = 0
+ strE = timeE[i]
+ if (is.na(strE) == FALSE) {
+ if ( nchar(strE) == 8 ) {
+ eHour = as.integer(substr(strE, 1, 2))
+ eMinute = as.integer(substr(strE, 4, 5))
+ eSecond = as.integer(substr(strE, 7, 8))
+ hour = as.integer(eHour* 3600 + eMinute * 60 + eSecond)
+ }
+ }
+ hour
+ vHour <- c(vHour, hour)
+ }
+ vHour
+}
+getAge <- function(category)
+{
+ vAge <- c()
+ for (i in 1:length(category)) {
+ age <- 0
+ if (category[i] == 'MU19' | category[i] == 'FU19' )
+ {
+ age <- 1
+ }
+ else if (category[i] == 'MS' | category[i] == 'FS' )
+ {
+ age <- 2
+ }
+ else if (category[i] == 'M35' | category[i] == 'F35' )
+ {
+ age <- 3
+ }
+ else if (category[i] == 'M40' | category[i] == 'F40' )
+ {
+ age <- 4
+ }
+ else if (category[i] == 'M45' | category[i] == 'F45' )
+ {
+ age <- 5
+ }
+ else if (category[i] == 'M50' | category[i] == 'F50' )
+ {
+ age <- 6
+ }
+ else if (category[i] == 'M55' | category[i] == 'F55' )
+ {
+ age <- 7
+ }
+ else if (category[i] == 'M60' | category[i] == 'F60' )
+ {
+ age <- 8
+ }
+ else if (category[i] == 'M65' | category[i] == 'F65' )
+ {
+ age <- 9
+ }
+ else if (category[i] == 'M70' | category[i] == 'F70' )
+ {
+ age <- 10
+ }
+ else if (category[i] == 'M75' | category[i] == 'F75' )
+ {
+ age <- 11
+ }
+ else if (category[i] == 'M80' | category[i] == 'F80' )
+ {
+ age <- 12
+ }
+ vAge <- c(vAge, age)
+ }
+ vAge
+}
+mAll <- marathon
+mAllP <- data.frame(mAll, InClub = ifelse(mAll$Club == "", 0, 1), count = 1, Times =
+getSeconds(mAll$Gun.Time), age=getAge(mAll$Category))
+
+mAllP$InClub <- factor(mAllP$InClub, labels=c("NoClub", "Club"))
+
+p4<-ggplot(data = mAllP) + geom_bar(mapping = aes(x = Gender, fill=InClub)) + ggtitle('The
+club stat by gender')
+
+mAllPM <- subset(mAllP, mAllP$Gender == 'Male')
+mAllPF <- subset(mAllP, mAllP$Gender == 'Female')
+
+p1<-ggplot(data = mAllPM) + geom_bar(mapping = aes(x = Category, fill=InClub)) + ggtitle('The
+club stat by category(Men)')+
+coord_flip()
+
+p2<-ggplot(data = mAllPF) + geom_bar(mapping = aes(x = Category, fill=InClub)) + ggtitle('The
+club stat by category(Female)')+
+coord_flip()
+
+mAllPF <- subset(mAllPF, mAllPF$Times !=0)
+p3<-ggplot(data = mAllPF ) +
+geom_point(mapping = aes(x = age, y = Times, color=InClub)) + ggtitle('The
+Results(seconds)~Age + IsClub')
+
+grid.arrange( p1,p2 ,p4,p3, ncol=2,nrow=2)
+
+
+
+```
+
+In the first two graphs, we see that the age of 40 groups has the highest number of club participants for both males and females. In the third graph, we see that there are more males in clubs than females, however, there are also more males competing. In the fourth graph, we are looking at the results by age category and participation in a club or not.
+
+```{r }
+
+
+fit <-  glm(data=mAllPF,formula= Times~ age+InClub+age:InClub,family=poisson)
+
+summary(fit)$coefficients
+
+
+
+par(mfrow=c(1,2))
+suppressWarnings(plot(fit,which=c(1,2)))
+
+
+```
+
+We first ran a model and found that the QQ-plot had a skew at the bottom and top, also the interaction term was not significant. We then ran a Poisson's glm model and found that age, participation in a club and their interaction were significant in the model. The QQ-plot of the final model we have chosen is better although we still have a slight skew at the bottom. We also noted that the residuals are evenly spread about zero.
+
+##Conclusion
+
+From the above, we can conclude that twice as many males compete and 95 percent of the top 100 finishers were male. The most popular categories are singles and 40’s aged groups for both genders. Single categorized participants seem to have a better gun time. It was interesting to see the same trend for average speed amongst the categories for the first half and second half of the marathon. We suspected that participation in a club would influence your result. Interestingly there were only 2551(15.5%) participants in a club but the results in the model were still significant.
+
